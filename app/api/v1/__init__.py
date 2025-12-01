@@ -8,3 +8,12 @@ api_router.include_router(routes_wallet_auth.router, prefix="/wallet-auth", tags
 api_router.include_router(routes_users.router, prefix="/users", tags=["users"])
 api_router.include_router(routes_notes.router, prefix="/notes", tags=["notes"])
 api_router.include_router(routes_ai.router, prefix="/ai", tags=["ai"])
+
+@api_router.get("/health", tags=["health"])
+async def health_check():
+    """Health check endpoint for monitoring service status"""
+    return {
+        "status": "healthy",
+        "service": "vaulto-note-backend",
+        "version": "1.0.0"
+    }
