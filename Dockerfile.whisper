@@ -1,0 +1,51 @@
+FROM debian:bookworm-slim AS build
+
+ARG WHISPER_REPO=https://github.com/ggml-org/whisper.cpp.git
+WORKDIR /opt/whisper.cpp
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        cmake \
+        curl \
+        ffmpeg \
+        libopenblas-dev \
+        ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 ${WHISPER_REPO} .
+
+RUN cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DWHISPER_BUILD_EXAMPLES=ON \
+        -DWHISPER_BUILD_SERVER=ON \
+        -DWHISPER_BUILD_TESTS=OFF \
+        -DCMAKE_INSTALL_PREFIX=/opt/whisper.cpp/install && \
+    cmake --build build --config Release -j"$(nproc)" && \
+    cmake --install build --config Release --prefix /opt/whisper.cpp/install
+
+# Download base model once during build; cached in volume at runtime
+RUN ./models/download-ggml-model.sh base
+
+FROM debian:bookworm-slim
+WORKDIR /opt/whisper.cpp
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        ffmpeg \
+        libopenblas-dev \
+        ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /opt/whisper.cpp/install/ /opt/whisper.cpp/
+COPY --from=build /opt/whisper.cpp/models /opt/whisper.cpp/models
+RUN mkdir -p /opt/whisper.cpp/public
+
+ENV WHISPER_THREADS=4
+ENV LD_LIBRARY_PATH=/opt/whisper.cpp/lib:/opt/whisper.cpp/lib64
+EXPOSE 9000
+
+# Use entrypoint so threads can be overridden via env
+ENTRYPOINT ["/bin/sh", "-c", "./bin/whisper-server --model ./models/ggml-base.bin --host 0.0.0.0 --port 9000 --threads ${WHISPER_THREADS:-4} --public ./public --convert"]
