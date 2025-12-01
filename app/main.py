@@ -24,6 +24,13 @@ app.include_router(api_router, prefix="/api/v1")
 async def root():
     return {"message": "Welcome to Vaulto Note API"}
 
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "service": "vaulto-note-backend",
+        "version": "1.0.0"
+    }
 
 if __name__ == "__main__":
     import uvicorn
