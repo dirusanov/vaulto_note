@@ -26,13 +26,16 @@ async def get_current_user(
     if settings.API_SECRET_KEY and token == settings.API_SECRET_KEY:
         # Return a system user for API key authentication
         # This bypasses user authentication for self-hosted deployments
-        system_user = User(
-            id=0,
-            email="system@api",
-            username="system",
-            is_active=True,
-            hashed_password=""
-        )
+        # Create a mock user object (not persisted to DB)
+        from uuid import UUID
+        system_user = type('SystemUser', (), {
+            'id': UUID('00000000-0000-0000-0000-000000000000'),
+            'email': 'system@api',
+            'is_active': True,
+            'hashed_password': '',
+            'wallet_address': None,
+            'wallet_nonce': None
+        })()
         return system_user
     
     # Otherwise, proceed with JWT validation
